@@ -6,11 +6,11 @@ from invoke.tasks import task
 PACKAGE = "pydantic_module_settings"
 
 
-@task
-def static_checks(c: Context) -> None:
+@task(help={"check": "Only report problems, without changing any files."})
+def static_checks(c: Context, check: bool = False) -> None:
     """Format and lint with ruff, then check types with mypy."""
-    c.run("ruff format .", pty=False)
-    c.run("ruff check --fix .", pty=False)
+    c.run(f"ruff format {'--check ' if check else ''}.", pty=False)
+    c.run(f"ruff check {'' if check else '--fix '}.", pty=False)
     c.run(f"mypy --strict {PACKAGE}", pty=False)
     c.run(f"mypy {PACKAGE} tests tasks.py", pty=False)
 
