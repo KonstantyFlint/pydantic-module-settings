@@ -35,9 +35,14 @@ def get_setting_value[T](
     name: str,
     annotation: TypeForm[T],
     default: T | UnsetType = UNSET,
+    *,
+    empty_as_unset: bool,
 ) -> T:
-    if name in os.environ:
-        return parse_setting(name, annotation, os.environ[name])
+    raw = os.environ.get(name)
+    if empty_as_unset and raw == "":
+        raw = None
+    if raw is not None:
+        return parse_setting(name, annotation, raw)
     if default is UNSET:
         raise RuntimeError(f"Environment variable '{name}' must be set.")
     return cast(T, default)

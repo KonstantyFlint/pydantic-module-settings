@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from pydantic_env_settings.import_machinery import EnvSettingsFinder
+from pydantic_env_settings import env_settings
+from pydantic_env_settings.import_machinery import EnvSettingsFinder, LoadOptions
 
 PACKAGES = Path(__file__).parent / "packages"
 BYTECODE_SOURCE = PACKAGES / "bytecode_settings" / "settings.py"
@@ -164,6 +165,33 @@ def test_invalid_setting_error_names_prefixed_variable(monkeypatch):
         load("prefixed_required")
 
 
+def test_empty_as_unset_decision_is_required():
+    with pytest.raises(TypeError, match="empty_as_unset"):
+        env_settings("settings")
+
+
+def test_empty_as_unset_cannot_be_positional():
+    with pytest.raises(TypeError):
+        env_settings("settings", "", True)
+
+
+def test_empty_variable_counts_as_unset_when_enabled(monkeypatch):
+    monkeypatch.setenv("FOO_VALUE", "")
+
+    assert load("empty_is_unset").VALUE == 5
+
+
+def test_empty_variable_stays_empty_when_disabled(monkeypatch):
+    monkeypatch.setenv("TEXT", "")
+
+    assert load("empty_is_kept").TEXT == ""
+
+
+def test_different_empty_as_unset_for_imported_settings_raises():
+    with pytest.raises(RuntimeError, match=r"differently: mixed_empty\.base\.$"):
+        load("mixed_empty")
+
+
 def test_function_and_class_bodies_are_not_injected(monkeypatch):
     monkeypatch.setenv("PORT", "99")
 
@@ -238,6 +266,8 @@ def test_finder_target_defaults_to_none(monkeypatch):
     calls = []
     monkeypatch.setattr(PathFinder, "find_spec", lambda *args: calls.append(args))
 
-    EnvSettingsFinder("settings").find_spec("settings.base", None)
+    EnvSettingsFinder("settings", LoadOptions("", False)).find_spec(
+        "settings.base", None
+    )
 
     assert calls == [("settings.base", None, None)]
