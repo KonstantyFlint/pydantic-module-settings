@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from helpers import with_env
 
 from pydantic_env_settings.evaluate import get_setting_value
 
@@ -20,27 +21,25 @@ from pydantic_env_settings.evaluate import get_setting_value
         ("/var/data", Path, Path("/var/data")),
     ],
 )
-def test_parses_env_value(monkeypatch, raw, annotation, expected):
-    monkeypatch.setenv("SETTING", raw)
+def test_parses_env_value(raw, annotation, expected):
+    with with_env({"SETTING": raw}):
+        assert (
+            get_setting_value("SETTING", annotation, empty_as_unset=False) == expected
+        )
 
-    assert get_setting_value("SETTING", annotation, empty_as_unset=False) == expected
 
-
-def test_returns_default_when_unset(monkeypatch):
-    monkeypatch.delenv("SETTING", raising=False)
-
+@with_env({})
+def test_returns_default_when_unset():
     assert get_setting_value("SETTING", int, 3, empty_as_unset=True) == 3
 
 
-def test_none_is_a_valid_default(monkeypatch):
-    monkeypatch.delenv("SETTING", raising=False)
-
+@with_env({})
+def test_none_is_a_valid_default():
     assert get_setting_value("SETTING", int | None, None, empty_as_unset=False) is None
 
 
-def test_invalid_value_names_the_variable_without_leaking_it(monkeypatch):
-    monkeypatch.setenv("SETTING", "s3cret")
-
+@with_env({"SETTING": "s3cret"})
+def test_invalid_value_names_the_variable_without_leaking_it():
     with pytest.raises(RuntimeError, match="'SETTING' is invalid") as excinfo:
         get_setting_value("SETTING", int, empty_as_unset=False)
 
@@ -50,33 +49,28 @@ def test_invalid_value_names_the_variable_without_leaking_it(monkeypatch):
 
 
 @pytest.mark.parametrize("annotation", [int, str, int | None])
-def test_empty_uses_default_when_enabled(monkeypatch, annotation):
-    monkeypatch.setenv("SETTING", "")
-
+@with_env({"SETTING": ""})
+def test_empty_uses_default_when_enabled(annotation):
     assert get_setting_value("SETTING", annotation, 5, empty_as_unset=True) == 5
 
 
-def test_empty_counts_as_missing_when_enabled(monkeypatch):
-    monkeypatch.setenv("SETTING", "")
-
+@with_env({"SETTING": ""})
+def test_empty_counts_as_missing_when_enabled():
     with pytest.raises(RuntimeError, match="'SETTING' must be set"):
         get_setting_value("SETTING", str, empty_as_unset=True)
 
 
-def test_empty_overrides_default_when_disabled(monkeypatch):
-    monkeypatch.setenv("SETTING", "")
-
+@with_env({"SETTING": ""})
+def test_empty_overrides_default_when_disabled():
     assert get_setting_value("SETTING", str, "x", empty_as_unset=False) == ""
 
 
-def test_empty_is_validated_when_disabled(monkeypatch):
-    monkeypatch.setenv("SETTING", "")
-
+@with_env({"SETTING": ""})
+def test_empty_is_validated_when_disabled():
     with pytest.raises(RuntimeError, match="'SETTING' is invalid"):
         get_setting_value("SETTING", int, 5, empty_as_unset=False)
 
 
-def test_whitespace_is_not_empty(monkeypatch):
-    monkeypatch.setenv("SETTING", " ")
-
+@with_env({"SETTING": " "})
+def test_whitespace_is_not_empty():
     assert get_setting_value("SETTING", str, "x", empty_as_unset=True) == " "

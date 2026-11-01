@@ -6,6 +6,7 @@ from importlib.util import cache_from_source
 from pathlib import Path
 
 import pytest
+from helpers import with_env
 
 PACKAGE = Path(__file__).parent / "package"
 SOURCE = PACKAGE / "settings.py"
@@ -21,15 +22,14 @@ def bytecode(monkeypatch):
     shutil.rmtree(cache, ignore_errors=True)
 
 
-def test_stale_bytecode_is_not_reused(monkeypatch, bytecode):
+@with_env({"PORT": "99"})
+def test_stale_bytecode_is_not_reused(bytecode):
     py_compile.compile(SOURCE)
-    monkeypatch.setenv("PORT", "99")
 
     assert import_module(".package", __package__).PORT == 99
 
 
-def test_injected_bytecode_is_not_cached(monkeypatch, bytecode):
-    monkeypatch.setenv("PORT", "99")
-
+@with_env({"PORT": "99"})
+def test_injected_bytecode_is_not_cached(bytecode):
     assert import_module(".package", __package__).PORT == 99
     assert not Path(cache_from_source(SOURCE)).exists()

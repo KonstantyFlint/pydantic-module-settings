@@ -3,6 +3,7 @@ import sys
 from importlib import import_module
 
 import pytest
+from helpers import with_env
 
 
 @pytest.mark.parametrize(
@@ -13,9 +14,8 @@ def test_mismatched_options_raise(case):
         import_module(f".package.{case}", __package__)
 
 
-def test_same_options_can_be_used_again(monkeypatch):
-    monkeypatch.setenv("FOO_VALUE", "2")
-
+@with_env({"FOO_VALUE": "2"})
+def test_same_options_can_be_used_again():
     assert import_module(".package.same_prefix", __package__).base.VALUE == 2
 
 
@@ -26,6 +26,7 @@ def test_dependency_imported_before_block_raises():
     assert f"{__package__}.package.preloaded.devel" not in sys.modules
 
 
+@with_env({})
 def test_reloading_allows_namespace_subpackage():
     settings = import_module(".package.namespace", __package__)
 

@@ -1,9 +1,10 @@
 from importlib import import_module
 
+from helpers import with_env
 
-def test_function_and_class_bodies_are_not_rewritten(monkeypatch):
-    monkeypatch.setenv("PORT", "99")
 
+@with_env({"PORT": "99"})
+def test_function_and_class_bodies_are_not_rewritten():
     settings = import_module(".package", __package__)
 
     assert settings.CLASS_PORT == 1
@@ -11,7 +12,6 @@ def test_function_and_class_bodies_are_not_rewritten(monkeypatch):
     assert settings.LOCAL_PORT == 3
 
 
-def test_conditional_module_level_settings_are_rewritten(monkeypatch):
-    monkeypatch.setenv("NESTED", "99")
-
+@with_env({"NESTED": "99"})
+def test_conditional_module_level_settings_are_rewritten():
     assert import_module(".package", __package__).NESTED == 99
