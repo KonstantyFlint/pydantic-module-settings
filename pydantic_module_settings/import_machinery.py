@@ -13,7 +13,7 @@ from importlib.machinery import (
 )
 from typing import Any
 
-from pydantic_env_settings import evaluate
+from pydantic_module_settings import evaluate
 
 
 @dataclass(frozen=True)

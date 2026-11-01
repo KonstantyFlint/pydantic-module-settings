@@ -1,12 +1,17 @@
 [project]
-name = "pydantic-env-settings"
+name = "pydantic-module-settings"
 version = "0.1.0"
 description = "Load module-level settings from environment variables, validated by pydantic."
+readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.13.5",
     "typing-extensions>=4.13",
 ]
+
+[project.urls]
+Homepage = "https://github.com/KonstantyFlint/pydantic-module-settings"
+Repository = "https://github.com/KonstantyFlint/pydantic-module-settings"
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14"]
@@ -17,8 +22,10 @@ module-root = ""
 
 [dependency-groups]
 dev = [
+    "invoke>=3.0.3",
     "mypy>=2.4.1",
     "pytest>=8",
+    "pytest-cov>=7.1.0",
     "ruff>=0.17.3",
 ]
 
@@ -29,3 +36,11 @@ pythonpath = ["."]
 [tool.ruff.lint.per-file-ignores]
 # Sample packages exist to be imported, so their imports are the behaviour tested.
 "tests/*/package/**" = ["F401"]
+
+[tool.coverage.run]
+source = ["pydantic_module_settings"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true

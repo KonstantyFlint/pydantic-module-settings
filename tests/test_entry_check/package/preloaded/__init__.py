@@ -1,4 +1,4 @@
-from pydantic_env_settings import env_settings
+from pydantic_module_settings import env_settings
 
 from . import base
 

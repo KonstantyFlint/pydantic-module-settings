@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from helpers import with_env
 
-from pydantic_env_settings.evaluate import get_setting_value
+from pydantic_module_settings.evaluate import get_setting_value
 
 
 @pytest.mark.parametrize(

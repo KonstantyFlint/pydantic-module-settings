@@ -18,6 +18,8 @@ def function():
     return PORT
 
 
+Config.ATTRIBUTE: int = 4  # type: ignore[attr-defined,misc]
+
 CLASS_PORT = Config.PORT
 ASYNC_PORT = asyncio.run(coroutine())
 LOCAL_PORT = function()

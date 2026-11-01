@@ -12,6 +12,11 @@ def test_function_and_class_bodies_are_not_rewritten():
     assert settings.LOCAL_PORT == 3
 
 
+@with_env({"ATTRIBUTE": "99"})
+def test_annotated_attributes_are_not_rewritten():
+    assert import_module(".package", __package__).Config.ATTRIBUTE == 4
+
+
 @with_env({"NESTED": "99"})
 def test_conditional_module_level_settings_are_rewritten():
     assert import_module(".package", __package__).NESTED == 99

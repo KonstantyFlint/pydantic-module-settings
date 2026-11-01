@@ -4,8 +4,8 @@ from importlib.machinery import ModuleSpec, PathFinder, SourcelessFileLoader
 
 import pytest
 
-from pydantic_env_settings import env_settings
-from pydantic_env_settings.import_machinery import EnvSettingsFinder, LoadOptions
+from pydantic_module_settings import env_settings
+from pydantic_module_settings.import_machinery import EnvSettingsFinder, LoadOptions
 
 
 def test_empty_as_unset_decision_is_required():
