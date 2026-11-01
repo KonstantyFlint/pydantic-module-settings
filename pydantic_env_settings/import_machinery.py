@@ -37,7 +37,7 @@ def env_settings(
     a regular import or different options, as Python would reuse it as it is.
     """
     finder = EnvSettingsFinder(package, LoadOptions(prefix, empty_as_unset))
-    finder.ensure_not_imported()
+    finder.ensure_loaded_modules_compatible()
     sys.meta_path.insert(0, finder)
     try:
         yield
@@ -103,27 +103,6 @@ class EnvSettingsFinder(MetaPathFinder):
     package: str
     options: LoadOptions
 
-    def _in_scope(self, fullname: str) -> bool:
-        return fullname.startswith(f"{self.package}.")
-
-    def _imported_differently(self, module: types.ModuleType | None) -> bool:
-        loader = getattr(getattr(module, "__spec__", None), "loader", None)
-        if isinstance(loader, EnvSettingLoader):
-            return loader.options != self.options
-        # Namespace packages have no code to rewrite, so nothing can differ.
-        return not isinstance(loader, NamespaceLoader)
-
-    def ensure_not_imported(self) -> None:
-        imported = sorted(
-            name
-            for name, module in list(sys.modules.items())
-            if self._in_scope(name) and self._imported_differently(module)
-        )
-        if imported:
-            raise RuntimeError(
-                f"Settings were already imported differently: {', '.join(imported)}."
-            )
-
     def find_spec(
         self,
         fullname: str,
@@ -139,3 +118,25 @@ class EnvSettingsFinder(MetaPathFinder):
             return spec
 
         return None
+
+    def ensure_loaded_modules_compatible(self) -> None:
+        incompatible = sorted(
+            name
+            for name, module in list(sys.modules.items())
+            if self._in_scope(name) and not self._is_compatible(module)
+        )
+        if incompatible:
+            raise RuntimeError(
+                "Settings were already imported differently: "
+                f"{', '.join(incompatible)}."
+            )
+
+    def _in_scope(self, fullname: str) -> bool:
+        return fullname.startswith(f"{self.package}.")
+
+    def _is_compatible(self, module: types.ModuleType | None) -> bool:
+        loader = getattr(getattr(module, "__spec__", None), "loader", None)
+        if isinstance(loader, EnvSettingLoader):
+            return loader.options == self.options
+        # Namespace packages have no code to rewrite, so nothing can differ.
+        return isinstance(loader, NamespaceLoader)
