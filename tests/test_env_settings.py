@@ -126,6 +126,44 @@ def test_scope_does_not_match_name_prefix(monkeypatch):
     assert load("prefix_scope.settings").EXTRA == 1
 
 
+def test_prefix_is_used_by_settings_importing_each_other(monkeypatch):
+    monkeypatch.setenv("FOO_ABC", "2")
+    monkeypatch.delenv("FOO_DEF", raising=False)
+
+    settings = load("prefixed_settings")
+
+    assert (settings.ABC, settings.DEF) == (2, 10)
+
+
+def test_prefixed_setting_ignores_unprefixed_variable(monkeypatch):
+    monkeypatch.delenv("FOO_ABC", raising=False)
+    monkeypatch.setenv("ABC", "2")
+
+    assert load("prefixed_settings").ABC == 1
+
+
+def test_prefix_is_case_sensitive(monkeypatch):
+    monkeypatch.delenv("FOO_ABC", raising=False)
+    monkeypatch.setenv("foo_ABC", "2")
+
+    assert load("prefixed_settings").ABC == 1
+
+
+def test_missing_setting_error_names_prefixed_variable(monkeypatch):
+    monkeypatch.delenv("FOO_REQUIRED", raising=False)
+    monkeypatch.setenv("REQUIRED", "1")
+
+    with pytest.raises(RuntimeError, match="'FOO_REQUIRED' must be set"):
+        load("prefixed_required")
+
+
+def test_invalid_setting_error_names_prefixed_variable(monkeypatch):
+    monkeypatch.setenv("FOO_REQUIRED", "nope")
+
+    with pytest.raises(RuntimeError, match="'FOO_REQUIRED' is invalid"):
+        load("prefixed_required")
+
+
 def test_function_and_class_bodies_are_not_injected(monkeypatch):
     monkeypatch.setenv("PORT", "99")
 

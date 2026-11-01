@@ -11,15 +11,16 @@ from pydantic_env_settings import evaluate
 
 
 @contextlib.contextmanager
-def env_settings(package: str) -> Iterator[None]:
+def env_settings(package: str, prefix: str = "") -> Iterator[None]:
     """Load submodules of `package` as env settings for the `with` body.
 
-    Whatever else those submodules import stays untouched.
+    Whatever else those submodules import stays untouched. A setting `ABC` is read
+    from the environment variable `{prefix}ABC`.
 
     Raises RuntimeError if a submodule was already imported the regular way, as
     Python would reuse it without consulting the finder.
     """
-    finder = EnvSettingsFinder(package)
+    finder = EnvSettingsFinder(package, prefix)
     finder.ensure_not_imported()
     sys.meta_path.insert(0, finder)
     try:
@@ -31,9 +32,12 @@ def env_settings(package: str) -> Iterator[None]:
 class SettingInjector(ast.NodeTransformer):
     """Rewrites annotated module-level names, leaving function and class bodies."""
 
+    def __init__(self, prefix: str) -> None:
+        self.prefix = prefix
+
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         if isinstance(node.target, ast.Name):
-            args = [ast.Constant(node.target.id), node.annotation]
+            args = [ast.Constant(self.prefix + node.target.id), node.annotation]
             if node.value is not None:
                 args.append(node.value)
             node.value = ast.Call(
@@ -48,6 +52,10 @@ class SettingInjector(ast.NodeTransformer):
 
 
 class EnvSettingLoader(SourceFileLoader):
+    def __init__(self, fullname: str, path: str, prefix: str) -> None:
+        super().__init__(fullname, path)
+        self.prefix = prefix
+
     def exec_module(self, module: types.ModuleType) -> None:
         module.__dict__["__get_setting_value__"] = evaluate.get_setting_value
         super().exec_module(module)
@@ -59,7 +67,7 @@ class EnvSettingLoader(SourceFileLoader):
         return self.source_to_code(self.get_data(path), path)
 
     def source_to_code(self, data, path, **kwargs) -> types.CodeType:
-        tree = SettingInjector().visit(ast.parse(data, path))
+        tree = SettingInjector(self.prefix).visit(ast.parse(data, path))
         ast.fix_missing_locations(tree)
         return super().source_to_code(tree, path, **kwargs)
 
@@ -75,6 +83,7 @@ def _is_regular_import(module: types.ModuleType | None) -> bool:
 @dataclass(frozen=True)
 class EnvSettingsFinder(MetaPathFinder):
     package: str
+    prefix: str = ""
 
     def _in_scope(self, fullname: str) -> bool:
         return fullname.startswith(f"{self.package}.")
@@ -102,7 +111,7 @@ class EnvSettingsFinder(MetaPathFinder):
 
         spec = PathFinder.find_spec(fullname, path, target)
         if spec and isinstance(spec.loader, SourceFileLoader):
-            spec.loader = EnvSettingLoader(fullname, spec.loader.path)
+            spec.loader = EnvSettingLoader(fullname, spec.loader.path, self.prefix)
             return spec
 
         return None
