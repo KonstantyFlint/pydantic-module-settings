@@ -18,8 +18,8 @@ def env_settings(package: str, prefix: str = "") -> Iterator[None]:
     Whatever else those submodules import stays untouched. A setting `ABC` is read
     from the environment variable `{prefix}ABC`.
 
-    Raises RuntimeError if a submodule was already imported the regular way, as
-    Python would reuse it without consulting the finder.
+    Raises RuntimeError if a submodule was already imported in any other way, like
+    a regular import or a different prefix, as Python would reuse it as it is.
     """
     finder = EnvSettingsFinder(package, prefix)
     finder.ensure_not_imported()
@@ -77,14 +77,6 @@ class EnvSettingLoader(SourceFileLoader):
         return super().source_to_code(tree, path, **kwargs)
 
 
-def _is_regular_import(module: types.ModuleType | None) -> bool:
-    # Other loaders, like namespace packages', are never replaced by the finder.
-    loader = getattr(getattr(module, "__spec__", None), "loader", None)
-    return isinstance(loader, SourceFileLoader) and not isinstance(
-        loader, EnvSettingLoader
-    )
-
-
 @dataclass(frozen=True)
 class EnvSettingsFinder(MetaPathFinder):
     package: str
@@ -93,16 +85,22 @@ class EnvSettingsFinder(MetaPathFinder):
     def _in_scope(self, fullname: str) -> bool:
         return fullname.startswith(f"{self.package}.")
 
+    def _imported_differently(self, module: types.ModuleType | None) -> bool:
+        loader = getattr(getattr(module, "__spec__", None), "loader", None)
+        if isinstance(loader, EnvSettingLoader):
+            return loader.prefix != self.prefix
+        # Other loaders, like namespace packages', are never replaced by the finder.
+        return isinstance(loader, SourceFileLoader)
+
     def ensure_not_imported(self) -> None:
         imported = sorted(
             name
             for name, module in list(sys.modules.items())
-            if self._in_scope(name) and _is_regular_import(module)
+            if self._in_scope(name) and self._imported_differently(module)
         )
         if imported:
             raise RuntimeError(
-                "Settings were imported before env_settings ran: "
-                f"{', '.join(imported)}."
+                f"Settings were already imported differently: {', '.join(imported)}."
             )
 
     def find_spec(

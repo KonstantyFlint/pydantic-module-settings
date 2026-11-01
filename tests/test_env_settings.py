@@ -189,11 +189,29 @@ def test_invalid_value_raises(monkeypatch):
 
 def test_dependency_imported_before_hook_raises():
     with pytest.raises(
-        RuntimeError, match=r"before env_settings ran: preloaded_settings\.base\.$"
+        RuntimeError, match=r"already imported differently: preloaded_settings\.base\.$"
     ):
         load("preloaded_settings")
 
     assert "preloaded_settings.devel" not in sys.modules
+
+
+def test_different_prefix_for_imported_settings_raises():
+    with pytest.raises(
+        RuntimeError, match=r"already imported differently: mixed_prefix\.base\.$"
+    ):
+        load("mixed_prefix")
+
+
+def test_no_prefix_for_settings_imported_with_prefix_raises():
+    with pytest.raises(RuntimeError, match=r"differently: dropped_prefix\.base\.$"):
+        load("dropped_prefix")
+
+
+def test_same_prefix_can_be_used_again(monkeypatch):
+    monkeypatch.setenv("FOO_VALUE", "2")
+
+    assert load("repeated_prefix").base.VALUE == 2
 
 
 def test_reloading_allows_namespace_subpackage():
