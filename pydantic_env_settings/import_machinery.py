@@ -3,6 +3,7 @@ import contextlib
 import sys
 import types
 from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from importlib.abc import MetaPathFinder
 from importlib.machinery import ModuleSpec, PathFinder, SourceFileLoader
 
@@ -10,13 +11,16 @@ from pydantic_env_settings import evaluate
 
 
 @contextlib.contextmanager
-def env_import(package: str, *packages: str) -> Iterator[None]:
-    """Load the named modules/packages as env settings for the `with` body.
+def env_settings(package: str) -> Iterator[None]:
+    """Load submodules of `package` as env settings for the `with` body.
 
-    Only the named modules and their submodules are rewritten, so settings can
-    import each other while everything else they import stays untouched.
+    Whatever else those submodules import stays untouched.
+
+    Raises RuntimeError if a submodule was already imported the regular way, as
+    Python would reuse it without consulting the finder.
     """
-    finder = EnvSettingsFinder((package, *packages))
+    finder = EnvSettingsFinder(package)
+    finder.ensure_not_imported()
     sys.meta_path.insert(0, finder)
     try:
         yield
@@ -60,15 +64,32 @@ class EnvSettingLoader(SourceFileLoader):
         return super().source_to_code(tree, path, **kwargs)
 
 
+def _is_regular_import(module: types.ModuleType | None) -> bool:
+    # Other loaders, like namespace packages', are never replaced by the finder.
+    loader = getattr(getattr(module, "__spec__", None), "loader", None)
+    return isinstance(loader, SourceFileLoader) and not isinstance(
+        loader, EnvSettingLoader
+    )
+
+
+@dataclass(frozen=True)
 class EnvSettingsFinder(MetaPathFinder):
-    def __init__(self, packages: Sequence[str]) -> None:
-        self.packages = packages
+    package: str
 
     def _in_scope(self, fullname: str) -> bool:
-        return any(
-            fullname == package or fullname.startswith(f"{package}.")
-            for package in self.packages
+        return fullname.startswith(f"{self.package}.")
+
+    def ensure_not_imported(self) -> None:
+        imported = sorted(
+            name
+            for name, module in list(sys.modules.items())
+            if self._in_scope(name) and _is_regular_import(module)
         )
+        if imported:
+            raise RuntimeError(
+                "Settings were imported before env_settings ran: "
+                f"{', '.join(imported)}."
+            )
 
     def find_spec(
         self,
