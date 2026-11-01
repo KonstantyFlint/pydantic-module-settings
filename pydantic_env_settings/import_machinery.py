@@ -5,7 +5,12 @@ import types
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from importlib.abc import MetaPathFinder
-from importlib.machinery import ModuleSpec, PathFinder, SourceFileLoader
+from importlib.machinery import (
+    ModuleSpec,
+    NamespaceLoader,
+    PathFinder,
+    SourceFileLoader,
+)
 from typing import Any
 
 from pydantic_env_settings import evaluate
@@ -105,8 +110,8 @@ class EnvSettingsFinder(MetaPathFinder):
         loader = getattr(getattr(module, "__spec__", None), "loader", None)
         if isinstance(loader, EnvSettingLoader):
             return loader.options != self.options
-        # Other loaders, like namespace packages', are never replaced by the finder.
-        return isinstance(loader, SourceFileLoader)
+        # Namespace packages have no code to rewrite, so nothing can differ.
+        return not isinstance(loader, NamespaceLoader)
 
     def ensure_not_imported(self) -> None:
         imported = sorted(

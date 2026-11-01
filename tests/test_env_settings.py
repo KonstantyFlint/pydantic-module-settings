@@ -2,7 +2,8 @@ import importlib
 import py_compile
 import shutil
 import sys
-from importlib.machinery import PathFinder
+import types
+from importlib.machinery import ModuleSpec, PathFinder, SourcelessFileLoader
 from importlib.util import cache_from_source
 from pathlib import Path
 
@@ -240,6 +241,29 @@ def test_same_prefix_can_be_used_again(monkeypatch):
     monkeypatch.setenv("FOO_VALUE", "2")
 
     assert load("repeated_prefix").base.VALUE == 2
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        None,
+        ModuleSpec("unknown_loader.base", None),
+        ModuleSpec(
+            "unknown_loader.base",
+            SourcelessFileLoader("unknown_loader.base", "base.pyc"),
+        ),
+    ],
+)
+def test_unknown_loader_raises(monkeypatch, spec):
+    module = types.ModuleType("unknown_loader.base")
+    module.__spec__ = spec
+    monkeypatch.setitem(sys.modules, "unknown_loader.base", module)
+
+    with (
+        pytest.raises(RuntimeError, match=r"differently: unknown_loader\.base\.$"),
+        env_settings("unknown_loader", empty_as_unset=False),
+    ):
+        pass
 
 
 def test_reloading_allows_namespace_subpackage():
