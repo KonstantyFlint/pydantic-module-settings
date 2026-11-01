@@ -4,8 +4,8 @@ Write settings as plain, annotated Python modules, and have them read from
 environment variables and validated by [pydantic](https://docs.pydantic.dev).
 
 ```python
-PORT: int = 8000  # read from PORT, 8000 if it's not set
-DATABASE_URL: str  # read from DATABASE_URL, required
+PORT: int = 8000      # read from PORT, 8000 if it's not set
+DATABASE_URL: str     # read from DATABASE_URL, required
 ```
 
 There are no classes to define and no instances to pass around. Settings stay
@@ -96,12 +96,12 @@ from typing import Annotated
 
 from pydantic import Field, SecretStr
 
-NAME: str  # NAME=hello
+NAME: str                                 # NAME=hello
 RETRIES: Annotated[int, Field(gt=0)] = 3  # RETRIES=5
-TIMEOUT: float | None = None  # TIMEOUT=null
-LIMITS: dict[str, int] = {}  # LIMITS='{"a": 1}'
-DATA_DIR: Path = Path("/var/data")  # DATA_DIR=/srv/data
-API_KEY: SecretStr  # API_KEY=abc123
+TIMEOUT: float | None = None              # TIMEOUT=null
+LIMITS: dict[str, int] = {}               # LIMITS='{"a": 1}'
+DATA_DIR: Path = Path("/var/data")        # DATA_DIR=/srv/data
+API_KEY: SecretStr                        # API_KEY=abc123
 ```
 
 An invalid value raises a `RuntimeError` naming the variable. The value itself is
@@ -138,7 +138,9 @@ from importlib import import_module
 from pydantic_module_settings import env_settings
 
 with env_settings(__name__, empty_as_unset=True):
-    selected = import_module(os.environ.get("SETTINGS_MODULE", f"{__name__}.base"))
+    selected = import_module(
+        os.environ.get("SETTINGS_MODULE", f"{__name__}.base")
+    )
 ```
 
 ```python

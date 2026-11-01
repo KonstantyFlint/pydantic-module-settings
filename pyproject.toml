@@ -33,6 +33,9 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.ruff]
+extend-exclude = ["README.md"]
+
 [tool.ruff.lint.per-file-ignores]
 # Sample packages exist to be imported, so their imports are the behaviour tested.
 "tests/*/package/**" = ["F401"]
