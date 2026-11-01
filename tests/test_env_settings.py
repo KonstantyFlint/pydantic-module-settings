@@ -218,9 +218,7 @@ def test_injected_bytecode_is_not_cached(monkeypatch, bytecode):
 
 def test_finder_target_defaults_to_none(monkeypatch):
     calls = []
-    monkeypatch.setattr(
-        PathFinder, "find_spec", lambda *args: calls.append(args)
-    )
+    monkeypatch.setattr(PathFinder, "find_spec", lambda *args: calls.append(args))
 
     EnvSettingsFinder("settings").find_spec("settings.base", None)
 

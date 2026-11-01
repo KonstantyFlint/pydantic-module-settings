@@ -6,6 +6,7 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from importlib.abc import MetaPathFinder
 from importlib.machinery import ModuleSpec, PathFinder, SourceFileLoader
+from typing import Any
 
 from pydantic_env_settings import evaluate
 
@@ -66,7 +67,11 @@ class EnvSettingLoader(SourceFileLoader):
         path = self.get_filename(fullname)
         return self.source_to_code(self.get_data(path), path)
 
-    def source_to_code(self, data, path, **kwargs) -> types.CodeType:
+    # The stubs declare a staticmethod, but at runtime SourceLoader's is an instance
+    # method, which is what super() needs here.
+    def source_to_code(  # type: ignore[override]
+        self, data: Any, path: Any, **kwargs: Any
+    ) -> types.CodeType:
         tree = SettingInjector(self.prefix).visit(ast.parse(data, path))
         ast.fix_missing_locations(tree)
         return super().source_to_code(tree, path, **kwargs)

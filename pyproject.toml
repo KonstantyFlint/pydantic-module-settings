@@ -5,6 +5,7 @@ description = "Load module-level settings from environment variables, validated 
 requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.13.5",
+    "typing-extensions>=4.13",
 ]
 
 [build-system]
@@ -16,9 +17,15 @@ module-root = ""
 
 [dependency-groups]
 dev = [
+    "mypy>=2.4.1",
     "pytest>=8",
+    "ruff>=0.17.3",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "tests/packages"]
+
+[tool.ruff.lint.per-file-ignores]
+# Sample packages exist to be imported, so their imports are the behaviour tested.
+"tests/packages/**" = ["F401"]
