@@ -37,6 +37,7 @@ pythonpath = ["."]
 include = ["pydantic_module_settings", "tests", "tasks.py"]
 strict = ["pydantic_module_settings"]
 extraPaths = ["tests"]
+reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.ruff]
 extend-exclude = ["README.md"]
