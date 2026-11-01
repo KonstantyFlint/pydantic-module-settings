@@ -24,8 +24,8 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = [".", "tests/packages"]
+pythonpath = ["."]
 
 [tool.ruff.lint.per-file-ignores]
 # Sample packages exist to be imported, so their imports are the behaviour tested.
-"tests/packages/**" = ["F401"]
+"tests/*/package/**" = ["F401"]

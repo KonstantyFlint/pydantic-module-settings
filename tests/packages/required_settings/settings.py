@@ -1,1 +1,0 @@
-REQUIRED_SETTING: int
