@@ -22,8 +22,13 @@ from pydantic_env_settings import evaluate
 
 
 @contextlib.contextmanager
-def env_import() -> Iterator[None]:
-    f = EnvSettingsFinder()
+def env_import(package: str, *packages: str) -> Iterator[None]:
+    """Load the named modules/packages as env settings for the `with` body.
+
+    Only the named modules and their submodules are rewritten, so settings can
+    import each other while everything else they import stays untouched.
+    """
+    f = EnvSettingsFinder((package, *packages))
     sys.meta_path.insert(0, f)
     yield
     sys.meta_path.remove(f)
@@ -67,6 +72,14 @@ class EnvSettingLoader(SourceFileLoader):
 
 
 class EnvSettingsFinder(MetaPathFinder):
+    def __init__(self, packages: Sequence[str]) -> None:
+        self.packages = packages
+
+    def _in_scope(self, fullname: str) -> bool:
+        return any(
+            fullname == package or fullname.startswith(f"{package}.")
+            for package in self.packages
+        )
 
     def find_spec(
         self,
@@ -74,6 +87,9 @@ class EnvSettingsFinder(MetaPathFinder):
         path: Sequence[str] | None,
         target: types.ModuleType | None = ...,
     ) -> "ModuleSpec | None":
+        if not self._in_scope(fullname):
+            return None
+
         spec = importlib.machinery.PathFinder.find_spec(fullname, path, target)
 
         if spec and isinstance(
