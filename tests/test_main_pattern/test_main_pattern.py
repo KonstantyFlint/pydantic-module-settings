@@ -1,18 +1,10 @@
 import sys
-from typing import TYPE_CHECKING, assert_type
+from typing import assert_type
 
 import pytest
 from helpers import with_env
 
 DEVEL = f"{__package__}.package.devel"
-
-if TYPE_CHECKING:
-    # Checked by pyright: the selected module is typed as `base`, whichever it is.
-    from .package import settings as static_settings
-
-    assert_type(static_settings.PORT, int)
-    assert_type(static_settings.DEBUG, bool)
-    _ = static_settings.URL  # pyright: ignore[reportAttributeAccessIssue]
 
 
 @with_env({})
@@ -21,6 +13,17 @@ def test_base_is_selected_by_default():
 
     assert settings.__name__ == f"{__package__}.package.base"
     assert (settings.DEBUG, settings.PORT) == (False, 8000)
+
+
+@with_env({})
+def test_settings_are_typed_as_base():
+    from .package import settings
+
+    # Not runtime checks: assert_type does nothing here, pyright verifies these.
+    assert_type(settings.PORT, int)
+    assert_type(settings.DEBUG, bool)
+    with pytest.raises(AttributeError):
+        _ = settings.URL  # pyright: ignore[reportAttributeAccessIssue]
 
 
 @with_env({"APP_PORT": "9000", "APP_DEBUG": "true"})
