@@ -24,7 +24,7 @@ def bytecode(monkeypatch):
 
 @with_env({"PORT": "99"})
 def test_stale_bytecode_is_not_reused(bytecode):
-    py_compile.compile(SOURCE)
+    py_compile.compile(str(SOURCE))
 
     assert import_module(".package", __package__).PORT == 99
 

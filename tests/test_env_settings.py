@@ -10,12 +10,12 @@ from pydantic_module_settings.import_machinery import EnvSettingsFinder, LoadOpt
 
 def test_empty_as_unset_decision_is_required():
     with pytest.raises(TypeError, match="empty_as_unset"):
-        env_settings("settings")
+        env_settings("settings")  # pyright: ignore[reportCallIssue]
 
 
 def test_empty_as_unset_cannot_be_positional():
     with pytest.raises(TypeError):
-        env_settings("settings", "", True)
+        env_settings("settings", "", True)  # pyright: ignore[reportCallIssue]
 
 
 @pytest.mark.parametrize(

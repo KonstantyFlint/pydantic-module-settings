@@ -2,7 +2,7 @@ import ast
 import contextlib
 import sys
 import types
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from dataclasses import dataclass
 from importlib.abc import MetaPathFinder
 from importlib.machinery import (
@@ -25,7 +25,7 @@ class LoadOptions:
 @contextlib.contextmanager
 def env_settings(
     package: str, prefix: str = "", *, empty_as_unset: bool
-) -> Iterator[None]:
+) -> Generator[None]:
     """Load submodules of `package` as env settings for the `with` body.
 
     Whatever else those submodules import stays untouched. A setting `ABC` is read

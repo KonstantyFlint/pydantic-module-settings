@@ -5,5 +5,4 @@ __pycache__/
 .pytest_cache/
 dist/
 .coverage
-.mypy_cache/
 .ruff_cache/
