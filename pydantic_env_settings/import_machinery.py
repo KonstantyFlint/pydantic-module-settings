@@ -18,12 +18,14 @@ def env_import(package: str, *packages: str) -> Iterator[None]:
     """
     finder = EnvSettingsFinder((package, *packages))
     sys.meta_path.insert(0, finder)
-    yield
-    sys.meta_path.remove(finder)
+    try:
+        yield
+    finally:
+        sys.meta_path.remove(finder)
 
 
 class SettingInjector(ast.NodeTransformer):
-    """Rewrites annotated names into env lookups."""
+    """Rewrites annotated module-level names, leaving function and class bodies."""
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         if isinstance(node.target, ast.Name):
@@ -35,11 +37,22 @@ class SettingInjector(ast.NodeTransformer):
             )
         return node
 
+    def _skip(self, node: ast.AST) -> ast.AST:
+        return node
+
+    visit_FunctionDef = visit_AsyncFunctionDef = visit_ClassDef = _skip
+
 
 class EnvSettingLoader(SourceFileLoader):
     def exec_module(self, module: types.ModuleType) -> None:
         module.__dict__["__get_setting_value__"] = evaluate.get_setting_value
         super().exec_module(module)
+
+    def get_code(self, fullname: str) -> types.CodeType:
+        # Skip __pycache__: it is shared with regular imports, which would
+        # otherwise read and write bytecode meant for the other kind of import.
+        path = self.get_filename(fullname)
+        return self.source_to_code(self.get_data(path), path)
 
     def source_to_code(self, data, path, **kwargs) -> types.CodeType:
         tree = SettingInjector().visit(ast.parse(data, path))
@@ -61,7 +74,7 @@ class EnvSettingsFinder(MetaPathFinder):
         self,
         fullname: str,
         path: Sequence[str] | None,
-        target: types.ModuleType | None = ...,
+        target: types.ModuleType | None = None,
     ) -> ModuleSpec | None:
         if not self._in_scope(fullname):
             return None

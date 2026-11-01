@@ -1,10 +1,15 @@
 import importlib
+import shutil
 import sys
+from importlib.machinery import PathFinder
 from pathlib import Path
 
 import pytest
 
-from pydantic_env_settings.import_machinery import env_import
+from pydantic_env_settings.import_machinery import (
+    EnvSettingsFinder,
+    env_import,
+)
 
 PACKAGES = Path(__file__).parent / "packages"
 
@@ -16,6 +21,15 @@ def forget_packages():
     for name, module in list(sys.modules.items()):
         if PACKAGES in Path(getattr(module, "__file__", None) or "").parents:
             del sys.modules[name]
+
+
+@pytest.fixture
+def bytecode(monkeypatch):
+    """Turns on bytecode writing, starting without any cached files."""
+    monkeypatch.setattr(sys, "dont_write_bytecode", False)
+    shutil.rmtree(PACKAGES / "bytecode_settings" / "__pycache__", ignore_errors=True)
+    yield
+    shutil.rmtree(PACKAGES / "bytecode_settings" / "__pycache__", ignore_errors=True)
 
 
 def load(name, *scope):
@@ -45,17 +59,17 @@ def test_missing_required_setting_raises(monkeypatch):
     monkeypatch.delenv("REQUIRED_SETTING", raising=False)
 
     with pytest.raises(RuntimeError, match="'REQUIRED_SETTING' must be set"):
-        load("required_settings")
+        load("required_settings.settings")
 
 
 def test_modules_outside_scope_are_not_injected(monkeypatch):
     monkeypatch.setenv("LIMIT", "99")
 
-    settings = load("importing_settings")
+    settings = load("outside_scope.settings")
 
-    assert settings.helper_module.LIMIT == 1
+    assert settings.helper.LIMIT == 1
     assert settings.HELPER_LIMIT == 1
-    assert not hasattr(settings.helper_module, "__get_setting_value__")
+    assert not hasattr(settings.helper, "__get_setting_value__")
 
 
 def test_sibling_of_scoped_package_is_not_injected(monkeypatch):
@@ -70,19 +84,71 @@ def test_sibling_of_scoped_package_is_not_injected(monkeypatch):
 def test_scope_does_not_match_name_prefix(monkeypatch):
     monkeypatch.setenv("VALUE", "99")
 
-    assert load("settings_extra", "settings").VALUE == 1
+    assert load("prefix_scope.settings_extra", "prefix_scope.settings").VALUE == 1
 
 
 def test_several_scopes(monkeypatch):
     monkeypatch.setenv("A", "1")
     monkeypatch.setenv("B", "2")
 
-    settings = load("chained_second", "chained_first", "chained_second")
+    settings = load("multi_scope.second", "multi_scope.first", "multi_scope.second")
 
     assert (settings.A, settings.B) == (1, 2)
+
+
+def test_function_and_class_bodies_are_not_injected(monkeypatch):
+    monkeypatch.setenv("PORT", "99")
+
+    settings = load("nested_scopes.settings")
+
+    assert settings.CLASS_PORT == 1
+    assert settings.ASYNC_PORT == 2
+    assert settings.LOCAL_PORT == 3
 
 
 def test_conditional_module_level_settings_are_injected(monkeypatch):
     monkeypatch.setenv("NESTED", "99")
 
-    assert load("conditional_settings").NESTED == 99
+    assert load("conditional_settings.settings").NESTED == 99
+
+
+@pytest.mark.parametrize("failing", ["missing", "invalid"])
+def test_finder_is_removed_when_import_fails(monkeypatch, failing):
+    monkeypatch.delenv("REQUIRED_SETTING", raising=False)
+    if failing == "invalid":
+        monkeypatch.setenv("REQUIRED_SETTING", "nope")
+    meta_path = list(sys.meta_path)
+
+    with pytest.raises(RuntimeError):
+        load("required_settings.settings")
+
+    assert sys.meta_path == meta_path
+
+
+def test_bytecode_from_plain_import_is_not_reused(monkeypatch, bytecode):
+    monkeypatch.setenv("PORT", "99")
+
+    assert importlib.import_module("bytecode_settings.settings").PORT == 1
+    del sys.modules["bytecode_settings.settings"]
+
+    assert load("bytecode_settings.settings").PORT == 99
+
+
+def test_injected_bytecode_is_not_cached(monkeypatch, bytecode):
+    monkeypatch.setenv("PORT", "99")
+
+    assert load("bytecode_settings.settings").PORT == 99
+    del sys.modules["bytecode_settings.settings"]
+
+    assert importlib.import_module("bytecode_settings.settings").PORT == 1
+
+
+def test_finder_target_defaults_to_none(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        PathFinder, "find_spec", lambda *args: calls.append(args)
+    )
+
+    EnvSettingsFinder(["settings"]).find_spec("settings", None)
+
+    assert calls == [("settings", None, None)]
